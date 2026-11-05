@@ -1,4 +1,5 @@
 import os
+from functools import wraps
 from pathlib import Path
 
 from flask import (
@@ -30,6 +31,17 @@ app.config.from_object(__name__)
 db = SQLAlchemy(app)
 
 import models
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Please log in.")
+            return jsonify({"status": 0, "message": "Please log in."}), 401
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 @app.route("/")
@@ -72,6 +84,7 @@ def logout():
 
 
 @app.route("/delete/<int:post_id>", methods=["GET"])
+@login_required
 def delete_entry(post_id):
     result = {"status": 0, "message": "Error"}
     try:
@@ -82,6 +95,15 @@ def delete_entry(post_id):
     except Exception as e:
         result = {"status": 0, "message": repr(e)}
     return jsonify(result)
+
+
+@app.route("/search/", methods=["GET"])
+def search():
+    query = request.args.get("query")
+    entries = db.session.query(models.Post)
+    if query:
+        return render_template("search.html", entries=entries, query=query)
+    return render_template("search.html")
 
 
 if __name__ == "__main__":

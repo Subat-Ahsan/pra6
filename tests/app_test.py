@@ -77,7 +77,45 @@ def test_messages(client):
 
 
 def test_delete_message(client):
-    """Ensure the messages are being deleted"""
+    """Ensure the messages are being deleted only when logged in"""
+    rv = client.get("/delete/1")
+    data = json.loads(rv.data)
+    assert data["status"] == 0
+    login(client, app.config["USERNAME"], app.config["PASSWORD"])
     rv = client.get("/delete/1")
     data = json.loads(rv.data)
     assert data["status"] == 1
+
+
+def test_delete_requires_login(client):
+    """Ensure deleting without logging in returns a 401"""
+    rv = client.get("/delete/1")
+    assert rv.status_code == 401
+
+
+def test_search_page_loads(client):
+    """Ensure the search page loads without a query"""
+    rv = client.get("/search/")
+    assert rv.status_code == 200
+
+
+def test_search_matches_title_and_text(client):
+    """Ensure search returns matching entries and hides the rest"""
+    login(client, app.config["USERNAME"], app.config["PASSWORD"])
+    client.post(
+        "/add",
+        data=dict(title="Apple pie", text="A dessert recipe"),
+        follow_redirects=True,
+    )
+    client.post(
+        "/add",
+        data=dict(title="Banana bread", text="Needs ripe fruit"),
+        follow_redirects=True,
+    )
+    rv = client.get("/search/?query=apple")
+    assert b"Apple pie" in rv.data
+    assert b"Banana bread" not in rv.data
+    rv = client.get("/search/?query=RIPE")
+    assert b"Banana bread" in rv.data
+    assert b"Apple pie" not in rv.data
+
