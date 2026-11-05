@@ -1,22 +1,23 @@
+import json
 import os
 import pytest
-import json
 from pathlib import Path
 
-from project.app import app, init_db
-
+BASE_DIR = Path(__file__).resolve().parent
 TEST_DB = "test.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{BASE_DIR.joinpath(TEST_DB)}"
+
+from app import app, db
 
 
 @pytest.fixture
 def client():
-    BASE_DIR = Path(__file__).resolve().parent.parent
     app.config["TESTING"] = True
-    app.config["DATABASE"] = BASE_DIR.joinpath(TEST_DB)
 
-    init_db()
-    yield app.test_client()
-    init_db()
+    with app.app_context():
+        db.create_all()
+        yield app.test_client()
+        db.drop_all()
 
 
 def login(client, username, password):
@@ -40,9 +41,8 @@ def test_index(client):
 
 
 def test_database(client):
-    """Initial test. Ensure that the database exists"""
-    tester = Path("test.db").is_file()
-    assert tester
+    """Initial test. Ensure that the test database exists"""
+    assert BASE_DIR.joinpath(TEST_DB).is_file()
 
 
 def test_empty_db(client):
@@ -74,6 +74,7 @@ def test_messages(client):
     assert b"No entries here so far" not in rv.data
     assert b"&lt;Hello&gt;" in rv.data
     assert b"<strong>HTML</strong> allowed here" in rv.data
+
 
 def test_delete_message(client):
     """Ensure the messages are being deleted"""
