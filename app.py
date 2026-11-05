@@ -20,10 +20,15 @@ basedir = Path(__file__).resolve().parent
 DATABASE = "flaskr.db"
 USERNAME = "admin"
 PASSWORD = "admin"
-SECRET_KEY = "change_me"
-SQLALCHEMY_DATABASE_URI = os.getenv(
-    "DATABASE_URL", f"sqlite:///{Path(basedir).joinpath(DATABASE)}"
-)
+SECRET_KEY = "dont_change_me"
+
+url = os.getenv("DATABASE_URL", f"sqlite:///{Path(basedir).joinpath(DATABASE)}")
+if url.startswith("postgres://"):
+    url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif url.startswith("postgresql://"):
+    url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+SQLALCHEMY_DATABASE_URI = url
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 app = Flask(__name__)
